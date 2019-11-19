@@ -16,15 +16,17 @@ namespace inst::ui {
         this->topRect = Rectangle::New(0, 0, 1280, 93, COLOR("#170909FF"));
         this->botRect = Rectangle::New(0, 660, 1280, 60, COLOR("#17090980"));
         this->titleImage = Image::New(0, 0, "romfs:/logo.png");
+        this->appVersionText = TextBlock::New(480, 49, "v" + inst::config::appVersion, 22);
+        this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->butText = TextBlock::New(10, 678, "\ue0e0 Select    \ue0e1 Exit ", 24);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->optionMenu = pu::ui::elm::Menu::New(0, 93, 1280, COLOR("#67000000"), 113, (567 / 113));
         this->optionMenu->SetOnFocusColor(COLOR("#00000033"));
         this->optionMenu->SetScrollbarColor(COLOR("#170909FF"));
-        this->installMenuItem = pu::ui::elm::MenuItem::New("Install NSP from SD Card");
+        this->installMenuItem = pu::ui::elm::MenuItem::New("Install from SD Card");
         this->installMenuItem->SetColor(COLOR("#FFFFFFFF"));
         this->installMenuItem->SetIcon("romfs:/micro-sd.png");
-        this->netInstallMenuItem = pu::ui::elm::MenuItem::New("Install NSP Over LAN or Internet");
+        this->netInstallMenuItem = pu::ui::elm::MenuItem::New("Install Over LAN or Internet");
         this->netInstallMenuItem->SetColor(COLOR("#FFFFFFFF"));
         this->netInstallMenuItem->SetIcon("romfs:/cloud-download.png");
         this->sigPatchesMenuItem = pu::ui::elm::MenuItem::New("Manage Signature Patches");
@@ -36,11 +38,13 @@ namespace inst::ui {
         this->exitMenuItem = pu::ui::elm::MenuItem::New("Exit");
         this->exitMenuItem->SetColor(COLOR("#FFFFFFFF"));
         this->exitMenuItem->SetIcon("romfs:/exit-run.png");
-        this->awooImage = Image::New(410, 190, "romfs:/awoos/5bbdbcf9a5625cd307c9e9bc360d78bd.png");
+        if (std::filesystem::exists(inst::config::appDir + "/awoo_main.png")) this->awooImage = Image::New(410, 190, inst::config::appDir + "/awoo_main.png");
+        else this->awooImage = Image::New(410, 190, "romfs:/awoos/5bbdbcf9a5625cd307c9e9bc360d78bd.png");
         this->eggImage = Image::New(410, 190, "romfs:/awoos/a8cb40e465dadaf9708c9b1896777ce6.png");
         this->Add(this->topRect);
         this->Add(this->botRect);
         this->Add(this->titleImage);
+        this->Add(this->appVersionText);
         this->Add(this->butText);
         this->optionMenu->AddItem(this->installMenuItem);
         this->optionMenu->AddItem(this->netInstallMenuItem);
@@ -50,7 +54,7 @@ namespace inst::ui {
         this->Add(this->optionMenu);
         this->Add(this->awooImage);
         this->Add(this->eggImage);
-        if (inst::config::gayMode) this->awooImage->SetVisible(false);
+        this->awooImage->SetVisible(!inst::config::gayMode);
         this->eggImage->SetVisible(false);
     }
 
@@ -59,7 +63,7 @@ namespace inst::ui {
             mainApp->nspinstPage->drawMenuItems(true);
             mainApp->LoadLayout(mainApp->nspinstPage);
         } else {
-            mainApp->CreateShowDialog("No NSP or NSZ files found!", "Copy them to the root of your SD card!", {"OK"}, true);
+            mainApp->CreateShowDialog("No installable files found!", "Copy NSP or NSZ files to the root of your SD card!", {"OK"}, true);
         }
     }
 

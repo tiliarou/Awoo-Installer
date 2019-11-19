@@ -15,11 +15,13 @@ namespace inst::ui {
         private:
             static std::vector<std::string> ourUrls;
             static std::vector<std::string> selectedUrls;
+            static std::vector<std::string> alternativeNames;
             TextBlock::Ref butText;
             Rectangle::Ref topRect;
             Rectangle::Ref infoRect;
             Rectangle::Ref botRect;
             Image::Ref titleImage;
+            TextBlock::Ref appVersionText;
             pu::ui::elm::Menu::Ref menu;
             void drawMenuItems(bool clearItems);
             void selectNsp(int selectedIndex);

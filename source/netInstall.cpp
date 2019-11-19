@@ -112,20 +112,38 @@ namespace netInstStuff{
         curl_global_cleanup();
     }
 
-    void installNspLan(std::vector<std::string> ourUrlList, int ourStorage)
+    void installNspLan(std::vector<std::string> ourUrlList, int ourStorage, std::vector<std::string> urlListAltNames)
     {
         inst::util::initInstallServices();
         if (appletGetAppletType() == AppletType_Application || appletGetAppletType() == AppletType_SystemApplication) appletBeginBlockingHomeButton(0);
         inst::ui::loadInstallScreen();
         bool nspInstalled = true;
-        FsStorageId m_destStorageId = FsStorageId_SdCard;
+        NcmStorageId m_destStorageId = NcmStorageId_SdCard;
 
-        if (ourStorage) m_destStorageId = FsStorageId_NandUser;
+        if (ourStorage) m_destStorageId = NcmStorageId_BuiltInUser;
         unsigned int urlItr;
+
+        std::vector<std::string> urlNames;
+        if (urlListAltNames.size() > 0) {
+            for (long unsigned int i = 0; i < urlListAltNames.size(); i++) {
+                urlNames.push_back(inst::util::shortenString(urlListAltNames[i], 42, true));
+            }
+        } else {
+            for (long unsigned int i = 0; i < ourUrlList.size(); i++) {
+                urlNames.push_back(inst::util::shortenString(inst::util::formatUrlString(ourUrlList[i]), 42, true));
+            }
+        }
+
+        std::vector<int> previousClockValues;
+        if (inst::config::overClock) {
+            previousClockValues.push_back(inst::util::setClockSpeed(0, 1785000000)[0]);
+            previousClockValues.push_back(inst::util::setClockSpeed(1, 76800000)[0]);
+            previousClockValues.push_back(inst::util::setClockSpeed(2, 1600000000)[0]);
+        }
 
         try {
             for (urlItr = 0; urlItr < ourUrlList.size(); urlItr++) {
-                inst::ui::setTopInstInfoText("Installing " + inst::util::shortenString(inst::util::formatUrlString(ourUrlList[urlItr]), 42, true));
+                inst::ui::setTopInstInfoText("Installing " + urlNames[urlItr]);
 
                 tin::install::nsp::HTTPNSP httpNSP(ourUrlList[urlItr]);
 
@@ -134,6 +152,7 @@ namespace netInstStuff{
 
                 printf("%s\n", "Preparing installation");
                 inst::ui::setInstInfoText("Preparing installation...");
+                inst::ui::setInstBarPerc(0);
                 install.Prepare();
 
                 install.Begin();
@@ -143,10 +162,16 @@ namespace netInstStuff{
             printf("Failed to install");
             printf("%s", e.what());
             fprintf(stdout, "%s", e.what());
-            inst::ui::setInstInfoText("Failed to install " + inst::util::shortenString(inst::util::formatUrlString(ourUrlList[urlItr]), 42, true));
+            inst::ui::setInstInfoText("Failed to install " + urlNames[urlItr]);
             inst::ui::setInstBarPerc(0);
-            inst::ui::mainApp->CreateShowDialog("Failed to install " + inst::util::shortenString(inst::util::formatUrlString(ourUrlList[urlItr]), 42, true) + "!", "Partially installed contents can be removed from the System Settings applet.\n\n" + (std::string)e.what(), {"OK"}, true);
+            inst::ui::mainApp->CreateShowDialog("Failed to install " + urlNames[urlItr] + "!", "Partially installed contents can be removed from the System Settings applet.\n\n" + (std::string)e.what(), {"OK"}, true);
             nspInstalled = false;
+        }
+
+        if (previousClockValues.size() > 0) {
+            inst::util::setClockSpeed(0, previousClockValues[0]);
+            inst::util::setClockSpeed(1, previousClockValues[1]);
+            inst::util::setClockSpeed(2, previousClockValues[2]);
         }
 
         printf("%s\n", "Telling the server we're done installing");
@@ -158,7 +183,7 @@ namespace netInstStuff{
             inst::ui::setInstInfoText("Install complete");
             inst::ui::setInstBarPerc(100);
             if (ourUrlList.size() > 1) inst::ui::mainApp->CreateShowDialog(std::to_string(ourUrlList.size()) + " files installed successfully!", nspInstStuff::finishedMessage(), {"OK"}, true);
-            else inst::ui::mainApp->CreateShowDialog(inst::util::shortenString(inst::util::formatUrlString(ourUrlList[0]), 42, true) + " installed!", nspInstStuff::finishedMessage(), {"OK"}, true);
+            else inst::ui::mainApp->CreateShowDialog(urlNames[0] + " installed!", nspInstStuff::finishedMessage(), {"OK"}, true);
         }
         
         printf("Done");
@@ -228,7 +253,7 @@ namespace netInstStuff{
                 }
                 if (kDown & KEY_X)
                 {
-                    inst::ui::mainApp->CreateShowDialog("Help", "NSP and NSZ files can be installed remotely from your other devices\nusing tools such as ns-usbloader or Fluffy. To send these files to your\nSwitch, simply open one of the pieces of software recomended above on\nyour PC or mobile device, input your Switch's IP address\n(listed on-screen), select your NSP and NSZ files, then upload to your\nconsole! If the software you're using won't let you select NSZ files,\ntry renaming the extension from NSZ to NSP.\n\nIf you can't figure it out, just copy the NSP or NSZ file to your SD\ncard and try the \"Install NSP from SD Card\" option on the main menu!", {"OK"}, true);
+                    inst::ui::mainApp->CreateShowDialog("Help", "Files can be installed remotely from your other devices using tools such\nas ns-usbloader or Fluffy. To send these files to your Switch, simply\nopen one of the pieces of software recomended above on your PC or mobile\ndevice, input your Switch's IP address (listed on-screen), select your\nfiles, then upload to your console! If the software you're using won't\nlet you select specific file types, try renaming the extension to\nsomething it accepts. Awoo Installer doesn't care about file extensions!\n\nIf you can't figure it out, just copy your files to your SD card and try\nthe \"Install from SD Card\" option on the main menu!", {"OK"}, true);
                 }
 
                 struct sockaddr_in client;

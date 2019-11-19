@@ -35,7 +35,7 @@ SOFTWARE.
 // TODO: Check tik/cert is present
 namespace tin::install
 {
-    Install::Install(FsStorageId destStorageId, bool ignoreReqFirmVersion) :
+    Install::Install(NcmStorageId destStorageId, bool ignoreReqFirmVersion) :
         m_destStorageId(destStorageId), m_ignoreReqFirmVersion(ignoreReqFirmVersion), m_contentMeta()
     {
         appletSetMediaPlaybackState(true);
@@ -162,8 +162,6 @@ namespace tin::install
         {
             printf("WARNING: Ticket installation failed! This may not be an issue, depending on your use case.\nProceed with caution!\n");
         }
-
-        //consoleUpdate(NULL);
     }
 
     void Install::Begin()
@@ -176,6 +174,7 @@ namespace tin::install
             //consoleUpdate(NULL);
             this->InstallNCA(record.content_id);
         }
+        declinedValidation = false;
 
         printf("Post Install Records: \n");
         //this->DebugPrintInstallData();
