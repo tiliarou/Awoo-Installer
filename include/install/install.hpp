@@ -44,27 +44,26 @@ namespace tin::install
         protected:
             const NcmStorageId m_destStorageId;
             bool m_ignoreReqFirmVersion = false;
-            bool declinedValidation = false;
+            bool m_declinedValidation = false;
 
-            nx::ncm::ContentMeta m_contentMeta;
+            std::vector<nx::ncm::ContentMeta> m_contentMeta;
 
             Install(NcmStorageId destStorageId, bool ignoreReqFirmVersion);
-            virtual ~Install();
 
-            virtual std::tuple<nx::ncm::ContentMeta, NcmContentInfo> ReadCNMT() = 0;
+            virtual std::vector<std::tuple<nx::ncm::ContentMeta, NcmContentInfo>> ReadCNMT() = 0;
 
-            virtual void InstallContentMetaRecords(tin::data::ByteBuffer& installContentMetaBuf);
-            virtual void InstallApplicationRecord();
+            virtual void InstallContentMetaRecords(tin::data::ByteBuffer& installContentMetaBuf, int i);
+            virtual void InstallApplicationRecord(int i);
             virtual void InstallTicketCert() = 0;
             virtual void InstallNCA(const NcmContentId &ncaId) = 0;
 
         public:
+            virtual ~Install();
+
             virtual void Prepare();
             virtual void Begin();
 
-            virtual u64 GetTitleId();
-            virtual NcmContentMetaType GetContentMetaType();
-
-            virtual void DebugPrintInstallData();
+            virtual u64 GetTitleId(int i = 0);
+            virtual NcmContentMetaType GetContentMetaType(int i = 0);
     };
 }

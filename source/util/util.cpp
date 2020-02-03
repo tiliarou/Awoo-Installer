@@ -5,13 +5,16 @@
 #include <unistd.h>
 #include <curl/curl.h>
 #include <regex>
+#include <arpa/inet.h>
+#include <unistd.h>
 #include "switch.h"
 #include "util/util.hpp"
 #include "nx/ipc/tin_ipc.h"
-#include "util/INIReader.h"
 #include "util/config.hpp"
 #include "util/curl.hpp"
 #include "ui/MainApplication.hpp"
+#include "util/usb_comms_awoo.h"
+#include "util/json.hpp"
 
 namespace inst::util {
     void initApp () {
@@ -19,17 +22,18 @@ namespace inst::util {
         if (!pu::IsReiNX()) pu::IsAtmosphere();
         if (!std::filesystem::exists("sdmc:/switch")) std::filesystem::create_directory("sdmc:/switch");
         if (!std::filesystem::exists(inst::config::appDir)) std::filesystem::create_directory(inst::config::appDir);
-        if (std::filesystem::exists(inst::config::configPath)) inst::config::parseConfig();
-        else inst::config::setConfig();
+        inst::config::parseConfig();
 
         socketInitializeDefault();
         #ifdef __DEBUG__
             nxlinkStdio();
         #endif
+        awoo_usbCommsInitialize();
     }
 
     void deinitApp () {
         socketExit();
+        awoo_usbCommsExit();
     }
 
     void initInstallServices() {
@@ -50,6 +54,16 @@ namespace inst::util {
         splExit();
     }
 
+    struct caseInsensitiveLess : public std::binary_function< char,char,bool > {
+        bool operator () (char x, char y) const {
+            return toupper(static_cast< unsigned char >(x)) < toupper(static_cast< unsigned char >(y));
+        }
+    };
+
+    bool ignoreCaseCompare(const std::string &a, const std::string &b) {
+        return std::lexicographical_compare(a.begin(), a.end() , b.begin() ,b.end() , caseInsensitiveLess());
+    }
+
     std::vector<std::filesystem::path> getDirectoryFiles(const std::string & dir, const std::vector<std::string> & extensions) {
         std::vector<std::filesystem::path> files;
         for(auto & p: std::filesystem::directory_iterator(dir))
@@ -64,8 +78,20 @@ namespace inst::util {
                 }
             }
         }
-        std::sort(files.begin(), files.end());
-        std::reverse(files.begin(), files.end());
+        std::sort(files.begin(), files.end(), ignoreCaseCompare);
+        return files;
+    }
+
+    std::vector<std::filesystem::path> getDirsAtPath(const std::string & dir) {
+        std::vector<std::filesystem::path> files;
+        for(auto & p: std::filesystem::directory_iterator(dir))
+        {
+            if (std::filesystem::is_directory(p))
+            {
+                    files.push_back(p.path());
+            }
+        }
+        std::sort(files.begin(), files.end(), ignoreCaseCompare);
         return files;
     }
 
@@ -225,5 +251,61 @@ namespace inst::util {
 
             return {previousHz, hz};
         }
+    }
+
+    std::string getIPAddress() {
+        struct in_addr addr = {(in_addr_t) gethostid()};
+        return inet_ntoa(addr);
+    }
+    
+    int getUsbState() {
+        u32 usbState = 0;
+        usbDsGetState(&usbState);
+        return usbState;
+    }
+
+    void playAudio(std::string audioPath) {
+        int audio_rate = 22050;
+        Uint16 audio_format = AUDIO_S16SYS;
+        int audio_channels = 2;
+        int audio_buffers = 4096;
+
+        if(Mix_OpenAudio(audio_rate, audio_format, audio_channels, audio_buffers) != 0) return;
+
+        Mix_Chunk *sound = NULL;
+        sound = Mix_LoadWAV(audioPath.c_str());
+        if(sound == NULL) {
+            Mix_FreeChunk(sound);
+            Mix_CloseAudio();
+            return;
+        }
+
+        int channel = Mix_PlayChannel(-1, sound, 0);
+        if(channel == -1) {
+            Mix_FreeChunk(sound);
+            Mix_CloseAudio();
+            return;
+        }
+
+        while(Mix_Playing(channel) != 0);
+
+        Mix_FreeChunk(sound);
+        Mix_CloseAudio();
+
+        return;
+    }
+    
+   std::vector<std::string> checkForAppUpdate () {
+        try {
+            std::string jsonData = inst::curl::downloadToBuffer("https://api.github.com/repos/Huntereb/Awoo-Installer/releases/latest", 0, 0, 1000L);
+            if (jsonData.size() == 0) return {};
+            nlohmann::json ourJson = nlohmann::json::parse(jsonData);
+            if (ourJson["tag_name"].get<std::string>() != inst::config::appVersion) {
+                std::vector<std::string> ourUpdateInfo = {ourJson["tag_name"].get<std::string>(), ourJson["assets"][0]["browser_download_url"].get<std::string>()};
+                inst::config::updateInfo = ourUpdateInfo;
+                return ourUpdateInfo;
+            }
+        } catch (...) {}
+        return {};
     }
 }

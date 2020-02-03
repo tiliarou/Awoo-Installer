@@ -21,6 +21,7 @@ SOFTWARE.
 */
 
 #include "nx/nca_writer.h"
+#include "util/error.hpp"
 #include <zstd.h>
 #include <string.h>
 #include "util/crypto.hpp"
@@ -247,7 +248,7 @@ public:
 
                if (ZSTD_isError(ret))
                {
-                    printf("%s\n", ZSTD_getErrorName(ret));
+                    LOG_DEBUG("%s\n", ZSTD_getErrorName(ret));
                     return false;
                }
 
@@ -371,8 +372,7 @@ bool NcaWriter::close()
      {
           if(isOpen())
           {
-               m_contentStorage->CreatePlaceholder(m_ncaId, *(NcmPlaceHolderId*)&m_ncaId, m_buffer.size());
-               m_contentStorage->WritePlaceholder(*(NcmPlaceHolderId*)&m_ncaId, 0, m_buffer.data(), m_buffer.size());
+               flushHeader();
           }
 
           m_buffer.resize(0);
@@ -407,19 +407,7 @@ u64 NcaWriter::write(const  u8* ptr, u64 sz)
 
           if (m_buffer.size() == NCA_HEADER_SIZE)
           {
-               tin::install::NcaHeader header;
-               memcpy(&header, m_buffer.data(), sizeof(header));
-               Crypto::AesXtr crypto(Crypto::Keys().headerKey);
-               crypto.decrypt(&header, &header, sizeof(header), 0, 0x200);
-
-               if (header.magic != MAGIC_NCA3)
-                    throw std::runtime_error("Invalid NCA magic");
-
-               if(isOpen())
-               {
-                    m_contentStorage->CreatePlaceholder(m_ncaId, *(NcmPlaceHolderId*)&m_ncaId, header.nca_size);
-                    m_contentStorage->WritePlaceholder(*(NcmPlaceHolderId*)&m_ncaId, 0, m_buffer.data(), m_buffer.size());
-               }
+               flushHeader();
           }
      }
 
@@ -440,7 +428,7 @@ u64 NcaWriter::write(const  u8* ptr, u64 sz)
                }
                else
                {
-                    throw std::runtime_error("not enough data to read ncz header");
+                    THROW_FORMAT("not enough data to read ncz header");
                }
           }
 
@@ -450,10 +438,41 @@ u64 NcaWriter::write(const  u8* ptr, u64 sz)
           }
           else
           {
-               throw std::runtime_error("null writer");
+               THROW_FORMAT("null writer");
           }
      }
 
      return sz;
 }
 
+void NcaWriter::flushHeader()
+{
+     tin::install::NcaHeader header;
+     memcpy(&header, m_buffer.data(), sizeof(header));
+     Crypto::AesXtr decryptor(Crypto::Keys().headerKey, false);
+     Crypto::AesXtr encryptor(Crypto::Keys().headerKey, true);
+     decryptor.decrypt(&header, &header, sizeof(header), 0, 0x200);
+
+     if (header.magic == MAGIC_NCA3)
+     {
+          if(isOpen())
+          {
+               m_contentStorage->CreatePlaceholder(m_ncaId, *(NcmPlaceHolderId*)&m_ncaId, header.nca_size);
+          }
+     }
+     else
+     {
+          THROW_FORMAT("Invalid NCA magic");
+     }
+
+     if (header.distribution == 1)
+     {
+          header.distribution = 0;
+     }
+     encryptor.encrypt(m_buffer.data(), &header, sizeof(header), 0, 0x200);
+
+     if(isOpen())
+     {
+          m_contentStorage->WritePlaceholder(*(NcmPlaceHolderId*)&m_ncaId, 0, m_buffer.data(), m_buffer.size());
+     }
+}

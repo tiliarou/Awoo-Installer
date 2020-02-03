@@ -13,9 +13,9 @@ namespace inst::ui {
             void onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos);
             TextBlock::Ref pageInfoText;
         private:
-            static std::vector<std::string> ourUrls;
-            static std::vector<std::string> selectedUrls;
-            static std::vector<std::string> alternativeNames;
+            std::vector<std::string> ourUrls;
+            std::vector<std::string> selectedUrls;
+            std::vector<std::string> alternativeNames;
             TextBlock::Ref butText;
             Rectangle::Ref topRect;
             Rectangle::Ref infoRect;
@@ -23,7 +23,8 @@ namespace inst::ui {
             Image::Ref titleImage;
             TextBlock::Ref appVersionText;
             pu::ui::elm::Menu::Ref menu;
+            Image::Ref infoImage;
             void drawMenuItems(bool clearItems);
-            void selectNsp(int selectedIndex);
+            void selectTitle(int selectedIndex);
     };
 }

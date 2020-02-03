@@ -44,7 +44,7 @@ DATA		:=	data
 INCLUDES	:=	include include/ui include/data include/install include/nx include/nx/ipc include/util include/Plutonium/Plutonium/Output-switch/include
 APP_TITLE	:=	Awoo Installer
 APP_AUTHOR	:=	Huntereb & Behemoth
-APP_VERSION	:=	1.1.0
+APP_VERSION	:=	1.3.1
 ROMFS		:=	romfs
 
 #---------------------------------------------------------------------------------
@@ -55,9 +55,10 @@ ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
 			$(ARCH) $(DEFINES)
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -D__DEBUG__ -DNXLINK_DEBUG
+CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -Wall -Werror #-D__DEBUG__ -DNXLINK_DEBUG
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17 -Wall -Werror
+
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
@@ -68,7 +69,7 @@ LIBS	:=  -lcurl -lz -lmbedtls -lmbedcrypto -lmbedx509 -lminizip -lnx -lstdc++fs 
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(PORTLIBS) $(LIBNX) $(CURDIR)/include/Plutonium/Plutonium/Output-switch
+LIBDIRS	:= $(PORTLIBS) $(LIBNX) $(CURDIR)/include/Plutonium/Plutonium/Output
 
 
 #---------------------------------------------------------------------------------
@@ -165,8 +166,8 @@ all: $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	#comment this out if you are hacking on the code or compilation will take for ever
-	$(MAKE) --no-print-directory -C include/Plutonium -f Makefile lib-switch
+	#comment this out if you are hacking on the code or compilation will take forever
+	$(MAKE) --no-print-directory -C include/Plutonium -f Makefile lib
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------

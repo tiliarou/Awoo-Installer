@@ -47,13 +47,13 @@ namespace nx::fs
         if (sizeRead != size)
         {
             std::string msg = "Size read " + std::string("" + sizeRead) + " doesn't match expected size " + std::string("" + size);
-            throw std::runtime_error(msg.c_str());
+            THROW_FORMAT(msg.c_str());
         }
     }
 
-    u64 IFile::GetSize()
+    s64 IFile::GetSize()
     {
-        u64 sizeOut;
+        s64 sizeOut;
         ASSERT_OK(fsFileGetSize(&m_file, &sizeOut), "Failed to get file size");
         return sizeOut;
     }
@@ -71,21 +71,20 @@ namespace nx::fs
         fsDirClose(&m_dir);
     }
 
-    void IDirectory::Read(u64 inval, FsDirectoryEntry* buf, size_t numEntries)
+    void IDirectory::Read(s64 inval, FsDirectoryEntry* buf, size_t numEntries)
     {
-        size_t entriesRead;
-        ASSERT_OK(fsDirRead(&m_dir, inval, &entriesRead, numEntries, buf), "Failed to read directory");
+        ASSERT_OK(fsDirRead(&m_dir, &inval, numEntries, buf), "Failed to read directory");
 
         /*if (entriesRead != numEntries)
         {
             std::string msg = "Entries read " + std::string("" + entriesRead) + " doesn't match expected number " + std::string("" + numEntries);
-            throw std::runtime_error(msg);
+            THROW_FORMAT(msg);
         }*/
     }
 
     u64 IDirectory::GetEntryCount()
     {
-        u64 entryCount = 0;
+        s64 entryCount = 0;
         ASSERT_OK(fsDirGetEntryCount(&m_dir, &entryCount), "Failed to get entry count");
         return entryCount;
     }
@@ -109,7 +108,7 @@ namespace nx::fs
     {
         Result rc = 0;
         if (path.length() >= FS_MAX_PATH)
-            throw std::runtime_error("Directory path is too long!");
+            THROW_FORMAT("Directory path is too long!");
 
         // libnx expects a FS_MAX_PATH-sized buffer
         path.reserve(FS_MAX_PATH);
@@ -131,7 +130,7 @@ namespace nx::fs
     IFile IFileSystem::OpenFile(std::string path)
     {
         if (path.length() >= FS_MAX_PATH)
-            throw std::runtime_error("Directory path is too long!");
+            THROW_FORMAT("Directory path is too long!");
 
         // libnx expects a FS_MAX_PATH-sized buffer
         path.reserve(FS_MAX_PATH);
@@ -145,7 +144,7 @@ namespace nx::fs
     {
         // Account for null at the end of c strings
         if (path.length() >= FS_MAX_PATH)
-            throw std::runtime_error("Directory path is too long!");
+            THROW_FORMAT("Directory path is too long!");
 
         // libnx expects a FS_MAX_PATH-sized buffer
         path.reserve(FS_MAX_PATH);

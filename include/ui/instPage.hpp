@@ -13,6 +13,11 @@ namespace inst::ui {
             TextBlock::Ref installInfoText;
             pu::ui::elm::ProgressBar::Ref installBar;
             Image::Ref awooImage;
+            static void setTopInstInfoText(std::string ourText);
+            static void setInstInfoText(std::string ourText);
+            static void setInstBarPerc(double ourPercent);
+            static void loadMainMenu();
+            static void loadInstallScreen();
         private:
             Rectangle::Ref infoRect;
             Rectangle::Ref topRect;

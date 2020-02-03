@@ -19,8 +19,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#include <vector>
 
 namespace netInstStuff {
-    void installNspLan(std::vector<std::string> ourUrlList, int ourStorage, std::vector<std::string> urlListAltNames);
+    void installTitleNet(std::vector<std::string> ourUrlList, int ourStorage, std::vector<std::string> urlListAltNames, std::string ourSource);
     std::vector<std::string> OnSelected();
 }

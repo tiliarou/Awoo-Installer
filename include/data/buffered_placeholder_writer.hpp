@@ -32,6 +32,7 @@ SOFTWARE.
 namespace tin::data
 {
     static const size_t BUFFER_SEGMENT_DATA_SIZE = 0x800000; // Approximately 8MB
+    extern int NUM_BUFFER_SEGMENTS;
 
     struct BufferSegment
     {
@@ -62,8 +63,6 @@ namespace tin::data
 			NcaWriter m_writer;
 
         public:
-            static const int NUM_BUFFER_SEGMENTS = 4;
-
             BufferedPlaceholderWriter(std::shared_ptr<nx::ncm::ContentStorage>& contentStorage, NcmContentId ncaId, size_t totalDataSize);
 
             void AppendData(void* source, size_t length);

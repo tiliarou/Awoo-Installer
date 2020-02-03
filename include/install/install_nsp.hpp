@@ -23,25 +23,23 @@ SOFTWARE.
 #pragma once
 
 #include <switch.h>
+#include <string>
 #include "install/install.hpp"
-#include "install/simple_filesystem.hpp"
-#include "nx/content_meta.hpp"
-#include "nx/ipc/tin_ipc.h"
+#include "install/nsp.hpp"
 
 namespace tin::install::nsp
 {
-    class NSPInstallTask : public Install
+    class NSPInstall : public Install
     {
         private:
-            tin::install::nsp::SimpleFileSystem* const m_simpleFileSystem;
+            const std::shared_ptr<NSP> m_NSP;
 
         protected:
-            std::tuple<nx::ncm::ContentMeta, NcmContentInfo> ReadCNMT() override;
+            std::vector<std::tuple<nx::ncm::ContentMeta, NcmContentInfo>> ReadCNMT() override;
             void InstallNCA(const NcmContentId& ncaId) override;
             void InstallTicketCert() override;
 
         public:
-            NSPInstallTask(tin::install::nsp::SimpleFileSystem& simpleFileSystem, NcmStorageId destStorageId, bool ignoreReqFirmVersion);
+            NSPInstall(NcmStorageId destStorageId, bool ignoreReqFirmVersion, const std::shared_ptr<NSP>& remoteNSP);
     };
-};
-
+}

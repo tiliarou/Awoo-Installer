@@ -22,25 +22,26 @@ SOFTWARE.
 
 #include <cstring>
 #include <sys/socket.h>
-#include <arpa/inet.h>
 #include <sys/errno.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <sstream>
 #include <curl/curl.h>
-
+#include <thread>
 #include <switch.h>
-#include "util/network_util.hpp"
-#include "install/install_nsp_remote.hpp"
+#include "netInstall.hpp"
+#include "install/install_nsp.hpp"
 #include "install/http_nsp.hpp"
+#include "install/install_xci.hpp"
+#include "install/http_xci.hpp"
 #include "install/install.hpp"
 #include "util/error.hpp"
-
-#include "ui/MainApplication.hpp"
-#include "netInstall.hpp"
-#include "nspInstall.hpp"
+#include "util/network_util.hpp"
 #include "util/config.hpp"
 #include "util/util.hpp"
+#include "util/curl.hpp"
+#include "util/lang.hpp"
+#include "ui/MainApplication.hpp"
+#include "ui/instPage.hpp"
 
 const unsigned int MAX_URL_SIZE = 1024;
 const unsigned int MAX_URLS = 256;
@@ -50,11 +51,6 @@ static int m_clientSocket = 0;
 
 namespace inst::ui {
     extern MainApplication *mainApp;
-
-    void setNetInfoText(std::string ourText){
-        mainApp->netinstPage->pageInfoText->SetText(ourText);
-        mainApp->CallForRender();
-    }
 }
 
 namespace netInstStuff{
@@ -89,7 +85,7 @@ namespace netInstStuff{
     }
     catch (std::exception& e)
     {
-        printf("Failed to initialize server socket!\n");
+        LOG_DEBUG("Failed to initialize server socket!\n");
         fprintf(stdout, "%s", e.what());
 
         if (m_serverSocket != 0)
@@ -102,7 +98,7 @@ namespace netInstStuff{
 
     void OnUnwound()
     {
-        printf("unwinding view\n");
+        LOG_DEBUG("unwinding view\n");
         if (m_clientSocket != 0)
         {
             close(m_clientSocket);
@@ -112,11 +108,10 @@ namespace netInstStuff{
         curl_global_cleanup();
     }
 
-    void installNspLan(std::vector<std::string> ourUrlList, int ourStorage, std::vector<std::string> urlListAltNames)
+    void installTitleNet(std::vector<std::string> ourUrlList, int ourStorage, std::vector<std::string> urlListAltNames, std::string ourSource)
     {
         inst::util::initInstallServices();
-        if (appletGetAppletType() == AppletType_Application || appletGetAppletType() == AppletType_SystemApplication) appletBeginBlockingHomeButton(0);
-        inst::ui::loadInstallScreen();
+        inst::ui::instPage::loadInstallScreen();
         bool nspInstalled = true;
         NcmStorageId m_destStorageId = NcmStorageId_SdCard;
 
@@ -126,11 +121,11 @@ namespace netInstStuff{
         std::vector<std::string> urlNames;
         if (urlListAltNames.size() > 0) {
             for (long unsigned int i = 0; i < urlListAltNames.size(); i++) {
-                urlNames.push_back(inst::util::shortenString(urlListAltNames[i], 42, true));
+                urlNames.push_back(inst::util::shortenString(urlListAltNames[i], 38, true));
             }
         } else {
             for (long unsigned int i = 0; i < ourUrlList.size(); i++) {
-                urlNames.push_back(inst::util::shortenString(inst::util::formatUrlString(ourUrlList[i]), 42, true));
+                urlNames.push_back(inst::util::shortenString(inst::util::formatUrlString(ourUrlList[i]), 38, true));
             }
         }
 
@@ -143,28 +138,34 @@ namespace netInstStuff{
 
         try {
             for (urlItr = 0; urlItr < ourUrlList.size(); urlItr++) {
-                inst::ui::setTopInstInfoText("Installing " + urlNames[urlItr]);
+                LOG_DEBUG("%s %s\n", "Install request from", ourUrlList[urlItr].c_str());
+                inst::ui::instPage::setTopInstInfoText("inst.info_page.top_info0"_lang + urlNames[urlItr] + ourSource);
+                std::unique_ptr<tin::install::Install> installTask;
 
-                tin::install::nsp::HTTPNSP httpNSP(ourUrlList[urlItr]);
+                if (inst::curl::downloadToBuffer(ourUrlList[urlItr], 0x100, 0x103) == "HEAD") {
+                    auto httpXCI = std::make_shared<tin::install::xci::HTTPXCI>(ourUrlList[urlItr]);
+                    installTask = std::make_unique<tin::install::xci::XCIInstallTask>(m_destStorageId, inst::config::ignoreReqVers, httpXCI);
+                } else {
+                    auto httpNSP = std::make_shared<tin::install::nsp::HTTPNSP>(ourUrlList[urlItr]);
+                    installTask = std::make_unique<tin::install::nsp::NSPInstall>(m_destStorageId, inst::config::ignoreReqVers, httpNSP);
+                }
 
-                printf("%s %s\n", "Install request from", ourUrlList[urlItr].c_str());
-                tin::install::nsp::RemoteNSPInstall install(m_destStorageId, inst::config::ignoreReqVers, &httpNSP);
-
-                printf("%s\n", "Preparing installation");
-                inst::ui::setInstInfoText("Preparing installation...");
-                inst::ui::setInstBarPerc(0);
-                install.Prepare();
-
-                install.Begin();
+                LOG_DEBUG("%s\n", "Preparing installation");
+                inst::ui::instPage::setInstInfoText("inst.info_page.preparing"_lang);
+                inst::ui::instPage::setInstBarPerc(0);
+                installTask->Prepare();
+                installTask->Begin();
             }
         }
         catch (std::exception& e) {
-            printf("Failed to install");
-            printf("%s", e.what());
+            LOG_DEBUG("Failed to install");
+            LOG_DEBUG("%s", e.what());
             fprintf(stdout, "%s", e.what());
-            inst::ui::setInstInfoText("Failed to install " + urlNames[urlItr]);
-            inst::ui::setInstBarPerc(0);
-            inst::ui::mainApp->CreateShowDialog("Failed to install " + urlNames[urlItr] + "!", "Partially installed contents can be removed from the System Settings applet.\n\n" + (std::string)e.what(), {"OK"}, true);
+            inst::ui::instPage::setInstInfoText("inst.info_page.failed"_lang + urlNames[urlItr]);
+            inst::ui::instPage::setInstBarPerc(0);
+            std::thread audioThread(inst::util::playAudio,"romfs:/audio/bark.wav");
+            inst::ui::mainApp->CreateShowDialog("inst.info_page.failed"_lang + urlNames[urlItr] + "!", "inst.info_page.failed_desc"_lang + "\n\n" + (std::string)e.what(), {"common.ok"_lang}, true);
+            audioThread.join();
             nspInstalled = false;
         }
 
@@ -174,21 +175,22 @@ namespace netInstStuff{
             inst::util::setClockSpeed(2, previousClockValues[2]);
         }
 
-        printf("%s\n", "Telling the server we're done installing");
+        LOG_DEBUG("Telling the server we're done installing\n");
         // Send 1 byte ack to close the server
         u8 ack = 0;
         tin::network::WaitSendNetworkData(m_clientSocket, &ack, sizeof(u8));
 
         if(nspInstalled) {
-            inst::ui::setInstInfoText("Install complete");
-            inst::ui::setInstBarPerc(100);
-            if (ourUrlList.size() > 1) inst::ui::mainApp->CreateShowDialog(std::to_string(ourUrlList.size()) + " files installed successfully!", nspInstStuff::finishedMessage(), {"OK"}, true);
-            else inst::ui::mainApp->CreateShowDialog(urlNames[0] + " installed!", nspInstStuff::finishedMessage(), {"OK"}, true);
+            inst::ui::instPage::setInstInfoText("inst.info_page.complete"_lang);
+            inst::ui::instPage::setInstBarPerc(100);
+            std::thread audioThread(inst::util::playAudio,"romfs:/audio/awoo.wav");
+            if (ourUrlList.size() > 1) inst::ui::mainApp->CreateShowDialog(std::to_string(ourUrlList.size()) + "inst.info_page.desc0"_lang, Language::GetRandomMsg(), {"common.ok"_lang}, true);
+            else inst::ui::mainApp->CreateShowDialog(urlNames[0] + "inst.info_page.desc1"_lang, Language::GetRandomMsg(), {"common.ok"_lang}, true);
+            audioThread.join();
         }
         
-        printf("Done");
-        if (appletGetAppletType() == AppletType_Application || appletGetAppletType() == AppletType_SystemApplication) appletEndBlockingHomeButton();
-        inst::ui::loadMainMenu();
+        LOG_DEBUG("Done");
+        inst::ui::instPage::loadMainMenu();
         inst::util::deinitInstallServices();
         return;
     }
@@ -215,18 +217,12 @@ namespace netInstStuff{
                 }
             }
 
-            struct in_addr addr = {(in_addr_t) gethostid()};
-            std::string ourIPAddr(inet_ntoa(addr));
-            // If our IP is 127.0.0.1, cancel because we aren't connected to a network
-            if (ourIPAddr == "1.0.0.127") {
-                inst::ui::mainApp->CreateShowDialog("Network connection not available", "Check that airplane mode is disabled and you're connected to a local network.", {"OK"}, true);
-                return {};
-            }
-            inst::ui::setNetInfoText("Waiting for a connection... Your Switch's IP Address is: " + ourIPAddr);
-
-            printf("%s %s\n", "Switch IP is ", inet_ntoa(addr));
-            printf("%s\n", "Waiting for network");
-            printf("%s\n", "B to cancel");
+            std::string ourIPAddress = inst::util::getIPAddress();
+            inst::ui::mainApp->netinstPage->pageInfoText->SetText("inst.net.top_info1"_lang + ourIPAddress);
+            inst::ui::mainApp->CallForRender();
+            LOG_DEBUG("%s %s\n", "Switch IP is ", ourIPAddress.c_str());
+            LOG_DEBUG("%s\n", "Waiting for network");
+            LOG_DEBUG("%s\n", "B to cancel");
             
             std::vector<std::string> urls;
 
@@ -253,7 +249,7 @@ namespace netInstStuff{
                 }
                 if (kDown & KEY_X)
                 {
-                    inst::ui::mainApp->CreateShowDialog("Help", "Files can be installed remotely from your other devices using tools such\nas ns-usbloader or Fluffy. To send these files to your Switch, simply\nopen one of the pieces of software recomended above on your PC or mobile\ndevice, input your Switch's IP address (listed on-screen), select your\nfiles, then upload to your console! If the software you're using won't\nlet you select specific file types, try renaming the extension to\nsomething it accepts. Awoo Installer doesn't care about file extensions!\n\nIf you can't figure it out, just copy your files to your SD card and try\nthe \"Install from SD Card\" option on the main menu!", {"OK"}, true);
+                    inst::ui::mainApp->CreateShowDialog("inst.net.help.title"_lang, "inst.net.help.desc"_lang, {"common.ok"_lang}, true);
                 }
 
                 struct sockaddr_in client;
@@ -263,12 +259,12 @@ namespace netInstStuff{
 
                 if (m_clientSocket >= 0)
                 {
-                    printf("%s\n", "Server accepted");
+                    LOG_DEBUG("%s\n", "Server accepted");
                     u32 size = 0;
                     tin::network::WaitReceiveNetworkData(m_clientSocket, &size, sizeof(u32));
                     size = ntohl(size);
 
-                    printf("Received url buf size: 0x%x\n", size);
+                    LOG_DEBUG("Received url buf size: 0x%x\n", size);
 
                     if (size > MAX_URL_SIZE * MAX_URLS)
                     {
@@ -284,14 +280,9 @@ namespace netInstStuff{
                     // Split the string up into individual URLs
                     std::stringstream urlStream(urlBuf.get());
                     std::string segment;
-                    std::string nspExt = ".nsp";
-                    std::string nszExt = ".nsz";
 
-                    while (std::getline(urlStream, segment, '\n'))
-                    {
-                        if (segment.compare(segment.size() - nspExt.size(), nspExt.size(), nspExt) == 0) urls.push_back(segment);
-                        else if (segment.compare(segment.size() - nszExt.size(), nszExt.size(), nszExt) == 0) urls.push_back(segment);
-                    }
+                    while (std::getline(urlStream, segment, '\n')) urls.push_back(segment);
+                    std::sort(urls.begin(), urls.end(), inst::util::ignoreCaseCompare);
 
                     break;
                 }
@@ -306,10 +297,10 @@ namespace netInstStuff{
         }
         catch (std::runtime_error& e)
         {
-            printf("Failed to perform remote install!\n");
-            printf("%s", e.what());
+            LOG_DEBUG("Failed to perform remote install!\n");
+            LOG_DEBUG("%s", e.what());
             fprintf(stdout, "%s", e.what());
-            inst::ui::mainApp->CreateShowDialog("Failed to perform remote install!", (std::string)e.what(), {"OK"}, true);
+            inst::ui::mainApp->CreateShowDialog("inst.net.failed"_lang, (std::string)e.what(), {"common.ok"_lang}, true);
             return {};
         }
     }

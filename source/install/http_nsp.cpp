@@ -28,11 +28,14 @@ SOFTWARE.
 #include "util/title_util.hpp"
 #include "util/error.hpp"
 #include "util/debug.h"
-#include "nspInstall.hpp"
 #include "util/util.hpp"
+#include "util/lang.hpp"
+#include "ui/instPage.hpp"
 
 namespace tin::install::nsp
 {
+    bool stopThreadsHttpNsp;
+
     HTTPNSP::HTTPNSP(std::string url) :
         m_download(url)
     {
@@ -63,7 +66,7 @@ namespace tin::install::nsp
             return streamBufSize;
         };
 
-        args->download->StreamDataRange(args->pfs0Offset, args->ncaSize, streamFunc);
+        if (args->download->StreamDataRange(args->pfs0Offset, args->ncaSize, streamFunc) == 1) stopThreadsHttpNsp = true;
         return 0;
     }
 
@@ -71,7 +74,7 @@ namespace tin::install::nsp
     {
         StreamFuncArgs* args = reinterpret_cast<StreamFuncArgs*>(in);
 
-        while (!args->bufferedPlaceholderWriter->IsPlaceholderComplete())
+        while (!args->bufferedPlaceholderWriter->IsPlaceholderComplete() && !stopThreadsHttpNsp)
         {
             if (args->bufferedPlaceholderWriter->CanWriteSegmentToPlaceholder())
                 args->bufferedPlaceholderWriter->WriteSegmentToPlaceholder();
@@ -80,19 +83,12 @@ namespace tin::install::nsp
         return 0;
     }
 
-    void HTTPNSP::BufferNCAHeader(void* buf, NcmContentId placeholderId)
-    {
-        const PFS0FileEntry* fileEntry = this->GetFileEntryByNcaId(placeholderId);
-        u64 pfs0Offset = this->GetDataOffset() + fileEntry->dataOffset;
-        this->BufferData(buf, pfs0Offset, 0xc00);
-    }
-
     void HTTPNSP::StreamToPlaceholder(std::shared_ptr<nx::ncm::ContentStorage>& contentStorage, NcmContentId placeholderId)
     {
         const PFS0FileEntry* fileEntry = this->GetFileEntryByNcaId(placeholderId);
         std::string ncaFileName = this->GetFileEntryName(fileEntry);
 
-        printf("Retrieving %s\n", ncaFileName.c_str());
+        LOG_DEBUG("Retrieving %s\n", ncaFileName.c_str());
         size_t ncaSize = fileEntry->fileSize;
 
         tin::data::BufferedPlaceholderWriter bufferedPlaceholderWriter(contentStorage, placeholderId, ncaSize);
@@ -104,6 +100,7 @@ namespace tin::install::nsp
         thrd_t curlThread;
         thrd_t writeThread;
 
+        stopThreadsHttpNsp = false;
         thrd_create(&curlThread, CurlStreamFunc, &args);
         thrd_create(&writeThread, PlaceholderWriteFunc, &args);
 
@@ -112,10 +109,8 @@ namespace tin::install::nsp
         size_t startSizeBuffered = 0;
         double speed = 0.0;
 
-        //consoleUpdate(NULL);
-        
-        inst::ui::setInstBarPerc(0);
-        while (!bufferedPlaceholderWriter.IsBufferDataComplete())
+        inst::ui::instPage::setInstBarPerc(0);
+        while (!bufferedPlaceholderWriter.IsBufferDataComplete() && !stopThreadsHttpNsp)
         {
             u64 newTime = armGetSystemTick();
 
@@ -129,36 +124,27 @@ namespace tin::install::nsp
                 startTime = newTime;
                 startSizeBuffered = newSizeBuffered;
 
-                u64 totalSizeMB = bufferedPlaceholderWriter.GetTotalDataSize() / 1000000;
-                u64 downloadSizeMB = bufferedPlaceholderWriter.GetSizeBuffered() / 1000000;
                 int downloadProgress = (int)(((double)bufferedPlaceholderWriter.GetSizeBuffered() / (double)bufferedPlaceholderWriter.GetTotalDataSize()) * 100.0);
 
-                printf("> Download Progress: %lu/%lu MB (%i%s) (%.2f MB/s)\r", downloadSizeMB, totalSizeMB, downloadProgress, "%", speed);
-                inst::ui::setInstInfoText("Downloading " + inst::util::formatUrlString(ncaFileName) + " at " + std::to_string(speed).substr(0, std::to_string(speed).size()-4) + "MB/s");
-                inst::ui::setInstBarPerc((double)downloadProgress);
+                inst::ui::instPage::setInstInfoText("inst.info_page.downloading"_lang + inst::util::formatUrlString(ncaFileName) + "inst.info_page.at"_lang + std::to_string(speed).substr(0, std::to_string(speed).size()-4) + "MB/s");
+                inst::ui::instPage::setInstBarPerc((double)downloadProgress);
             }
-            //consoleUpdate(NULL);
         }
-        inst::ui::setInstBarPerc(100);
+        inst::ui::instPage::setInstBarPerc(100);
 
-        u64 totalSizeMB = bufferedPlaceholderWriter.GetTotalDataSize() / 1000000;
-
-        inst::ui::setInstInfoText("Installing " + ncaFileName + "...");
-        inst::ui::setInstBarPerc(0);
-        while (!bufferedPlaceholderWriter.IsPlaceholderComplete())
+        inst::ui::instPage::setInstInfoText("inst.info_page.top_info0"_lang + ncaFileName + "...");
+        inst::ui::instPage::setInstBarPerc(0);
+        while (!bufferedPlaceholderWriter.IsPlaceholderComplete() && !stopThreadsHttpNsp)
         {
-            u64 installSizeMB = bufferedPlaceholderWriter.GetSizeWrittenToPlaceholder() / 1000000;
             int installProgress = (int)(((double)bufferedPlaceholderWriter.GetSizeWrittenToPlaceholder() / (double)bufferedPlaceholderWriter.GetTotalDataSize()) * 100.0);
 
-            printf("> Install Progress: %lu/%lu MB (%i%s)\r", installSizeMB, totalSizeMB, installProgress, "%");
-            inst::ui::setInstBarPerc((double)installProgress);
-            //consoleUpdate(NULL);
+            inst::ui::instPage::setInstBarPerc((double)installProgress);
         }
-        inst::ui::setInstBarPerc(100);
+        inst::ui::instPage::setInstBarPerc(100);
 
         thrd_join(curlThread, NULL);
         thrd_join(writeThread, NULL);
-        //consoleUpdate(NULL);
+        if (stopThreadsHttpNsp) THROW_FORMAT(("inst.net.transfer_interput"_lang).c_str());
     }
 
     void HTTPNSP::BufferData(void* buf, off_t offset, size_t size)

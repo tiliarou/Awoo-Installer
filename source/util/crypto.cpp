@@ -2,6 +2,7 @@
 #include <string.h>
 #include <mbedtls/bignum.h>
 #include <stdexcept>
+#include "util/error.hpp"
 
 void Crypto::calculateMGF1andXOR(unsigned char* data, size_t data_size, const void* source, size_t source_size) {
     unsigned char h_buf[RSA_2048_BYTES] = {0};
@@ -45,7 +46,7 @@ bool Crypto::rsa2048PssVerify(const void *data, size_t len, const unsigned char 
     mbedtls_mpi_exp_mod(&message_mpi, &signature_mpi, &e_mpi, &modulus_mpi, NULL);
 
     if (mbedtls_mpi_write_binary(&message_mpi, m_buf, RSA_2048_BYTES) != 0) {
-        throw std::runtime_error("Failed to export exponentiated RSA message!");
+        THROW_FORMAT("Failed to export exponentiated RSA message!");
     }
 
     mbedtls_mpi_free(&signature_mpi);
@@ -86,72 +87,4 @@ bool Crypto::rsa2048PssVerify(const void *data, size_t len, const unsigned char 
     sha256CalculateHash(validate_hash, validate_buf, 0x48);
 
     return memcmp(h_buf, validate_hash, 0x20) == 0;
-}
-
-Crypto::AesCtr::AesCtr() : m_high(0), m_low(0)
-{
-}
-
-Crypto::AesCtr::AesCtr(u64 iv) : m_high(swapEndian(iv)), m_low(0)
-{
-}
-
-Crypto::Aes128Ctr::Aes128Ctr(const u8* key, const AesCtr& iv)
-{
-    counter = iv;
-    aes128CtrContextCreate(&this->ctx, key, &iv);
-    seek(0);
-}
-
-Crypto::Aes128Ctr::~Aes128Ctr()
-{
-}
-
-void Crypto::Aes128Ctr::seek(u64 offset)
-{
-    counter.low() = swapEndian(offset >> 4);
-    aes128CtrContextResetCtr(&this->ctx, &counter);
-}
-
-void Crypto::Aes128Ctr::encrypt(void *dst, const void *src, size_t l)
-{
-    aes128CtrCrypt(&this->ctx, dst, src, l);
-}
-
-void Crypto::Aes128Ctr::decrypt(void *dst, const void *src, size_t l)
-{
-    encrypt(dst, src, l);
-}
-
-Crypto::AesXtr::AesXtr(const u8* key)
-{
-    aes128XtsContextCreate(&this->ctx, key, key + 0x10, false);
-}
-
-Crypto::AesXtr::~AesXtr()
-{
-}
-
-void Crypto::AesXtr::encrypt(void *dst, const void *src, size_t l, size_t sector, size_t sector_size)
-{
-    for (size_t i = 0; i < l; i += sector_size)
-    {
-        aes128XtsContextResetSector(&this->ctx, sector++, true);
-        aes128XtsEncrypt(&this->ctx, dst, src, sector_size);
-
-        dst = (u8*)dst + sector_size;
-        src = (const u8*)src + sector_size;
-    }
-}
-
-void Crypto::AesXtr::decrypt(void *dst, const void *src, size_t l, size_t sector, size_t sector_size)
-{
-    for (size_t i = 0; i < l; i += sector_size)
-    {
-        aes128XtsContextResetSector(&this->ctx, sector++, true);
-        aes128XtsDecrypt(&this->ctx, dst, src, sector_size);
-
-        dst = (u8*)dst + sector_size;
-        src = (const u8*)src + sector_size;
-    }
 }
