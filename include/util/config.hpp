@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace inst::config {
-    static const std::string appDir = "sdmc:/switch/Awoo-Installer";
+    static const std::string appDir = "sdmc:/switch/Awoo-Installer-noir";
     static const std::string configPath = appDir + "/config.json";
     static const std::string appVersion = "1.3.2";
 
@@ -16,7 +16,6 @@ namespace inst::config {
     extern bool overClock;
     extern bool deletePrompt;
     extern bool autoUpdate;
-    extern bool gayMode;
     extern bool usbAck;
 
     void setConfig();
