@@ -1,7 +1,7 @@
-# Awoo Installer
+# Awoo Installer noir
 A No-Bullshit NSP, NSZ, XCI, and XCZ Installer for Nintendo Switch
 
-![Awoo Installer Main Menu](https://i.imgur.com/armPAIU.jpg)
+![Awoo Installer Main Menu](https://imgur.com/L95fmBj)
 
 ## Features
 - Clean black theme
