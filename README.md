@@ -27,6 +27,7 @@ If you want to do other things like manage installed tickets, titles, and user a
 - blawar (wife strangulator) and nicoboss for [NSZ](https://github.com/nicoboss/nsz) support
 - The kind folks at the AtlasNX Discuck (or at least some of them)
 - The also kind folks at the RetroNX Discuck (of no direct involvement)
-- [namako8982](https://www.pixiv.net/member.php?id=14235616) for the Momiji art
 - TheXzoron for being a baka
+- [Flaticon](https://www.flaticon.com/) for their icons
+- Nintendo for their sound effects
 - [NikoofDeath](https://github.com/NikoofDeath) and his [fork](https://github.com/NikoofDeath/Awoo-56709-Installer) for major code changes
