@@ -15,9 +15,9 @@ namespace inst::ui {
         this->SetBackgroundColor(COLOR("#1A1816FF"));
         if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
         else this->SetBackgroundImage("romfs:/images/background.jpg");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, COLOR("#100F0EFF"));
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, COLOR("#100F0E80"));
-        this->botRect = Rectangle::New(0, 660, 1280, 60, COLOR("#100F0E80"));
+        this->topRect = Rectangle::New(0, 0, 0, 0, COLOR("#100F0EFF"));
+        this->infoRect = Rectangle::New(0, 95, 0, 0, COLOR("#100F0E80"));
+        this->botRect = Rectangle::New(0, 660, 0, 0, COLOR("#100F0E80"));
         this->titleImage = Image::New(0, 0, "romfs:/images/logo.png");
         this->appVersionText = TextBlock::New(480, 49, "v" + inst::config::appVersion, 22);
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
