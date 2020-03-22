@@ -89,10 +89,10 @@ namespace inst::ui {
                 return languageStrings[4];
             case 10:
                 return languageStrings[5];
-	        case 6:
-	            return languageStrings[6];
-	        case 11:
-	            return languageStrings[7];                
+	    case 6:
+	        return languageStrings[6];
+	    case 11:
+	        return languageStrings[7];                
             default:
                 return "options.language.system_language"_lang;
         }
