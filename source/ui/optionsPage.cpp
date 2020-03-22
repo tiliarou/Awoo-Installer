@@ -16,8 +16,7 @@
 namespace inst::ui {
     extern MainApplication *mainApp;
 
-    std::vector<std::string> languageStrings = {"English", "日本語", "Français", "Deutsch", "Italiano", "Русский"};
-
+	    std::vector<std::string> languageStrings = {"English", "日本語", "Français", "Deutsch", "Italiano", "Русский", "簡体中文","繁體中文"};
     optionsPage::optionsPage() : Layout::Layout() {
         this->SetBackgroundColor(COLOR("#1A1816FF"));
         if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
@@ -90,6 +89,10 @@ namespace inst::ui {
                 return languageStrings[4];
             case 10:
                 return languageStrings[5];
+	        case 6:
+	            return languageStrings[6];
+	        case 11:
+	            return languageStrings[7];                
             default:
                 return "options.language.system_language"_lang;
         }
