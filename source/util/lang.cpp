@@ -22,7 +22,7 @@ namespace Language {
         } 
         switch (langInt) {
             case 0:
-                languagePath = "romfs:/lang/ja.json";
+                languagePath = "romfs:/lang/jp.json";
                 break;
             case 2:
             case 13:
@@ -40,6 +40,8 @@ namespace Language {
                 break;
             case 6:
                 languagePath = "romfs:/lang/zh-CN.json";
+                // the default font will miss some chinese character, so use a chinese font (simplified)
+	            pu::ui::render::SetDefaultFontFromShared(pu::ui::render::SharedFont::ChineseSimplified);                
                 break;
             case 7:
                 languagePath = "romfs:/lang/ko.json";
@@ -55,6 +57,8 @@ namespace Language {
                 break;
             case 11:
                 languagePath = "romfs:/lang/zh-TW.json";
+	            // the default font will miss some chinese character, so use a chinese font (traditional)
+	            pu::ui::render::SetDefaultFontFromShared(pu::ui::render::SharedFont::ChineseTraditional);                
                 break;
             default:
                 languagePath = "romfs:/lang/en.json";

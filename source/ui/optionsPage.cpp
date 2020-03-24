@@ -16,15 +16,14 @@
 namespace inst::ui {
     extern MainApplication *mainApp;
 
-    std::vector<std::string> languageStrings = {"English", "Français", "Deutsch", "Italiano", "Русский"};
-
+	    std::vector<std::string> languageStrings = {"English", "日本語", "Français", "Deutsch", "Italiano", "Русский", "簡体中文","繁體中文"};
     optionsPage::optionsPage() : Layout::Layout() {
-        this->SetBackgroundColor(COLOR("#670000FF"));
+        this->SetBackgroundColor(COLOR("#1A1816FF"));
         if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
         else this->SetBackgroundImage("romfs:/images/background.jpg");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, COLOR("#170909FF"));
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, COLOR("#17090980"));
-        this->botRect = Rectangle::New(0, 660, 1280, 60, COLOR("#17090980"));
+        this->topRect = Rectangle::New(0, 0, 0, 0, COLOR("#100F0EFF"));
+        this->infoRect = Rectangle::New(0, 95, 0, 0, COLOR("#100F0E80"));
+        this->botRect = Rectangle::New(0, 660, 0, 0, COLOR("#100F0E80"));
         this->titleImage = Image::New(0, 0, "romfs:/images/logo.png");
         this->appVersionText = TextBlock::New(480, 49, "v" + inst::config::appVersion, 22);
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
@@ -34,7 +33,7 @@ namespace inst::ui {
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 84, (506 / 84));
         this->menu->SetOnFocusColor(COLOR("#00000033"));
-        this->menu->SetScrollbarColor(COLOR("#17090980"));
+        this->menu->SetScrollbarColor(COLOR("#100F0E80"));
         this->Add(this->topRect);
         this->Add(this->infoRect);
         this->Add(this->botRect);
@@ -79,15 +78,21 @@ namespace inst::ui {
             case 1:
             case 12:
                 return languageStrings[0];
+            case 0:
+                return languageStrings[1];
             case 2:
             case 13:
-                return languageStrings[1];
-            case 3:
                 return languageStrings[2];
-            case 4:
+            case 3:
                 return languageStrings[3];
-            case 10:
+            case 4:
                 return languageStrings[4];
+            case 10:
+                return languageStrings[5];
+	    case 6:
+	        return languageStrings[6];
+	    case 11:
+	        return languageStrings[7];                
             default:
                 return "options.language.system_language"_lang;
         }
@@ -115,10 +120,6 @@ namespace inst::ui {
         autoUpdateOption->SetColor(COLOR("#FFFFFFFF"));
         autoUpdateOption->SetIcon(this->getMenuOptionIcon(inst::config::autoUpdate));
         this->menu->AddItem(autoUpdateOption);
-        auto gayModeOption = pu::ui::elm::MenuItem::New("options.menu_items.gay_option"_lang);
-        gayModeOption->SetColor(COLOR("#FFFFFFFF"));
-        gayModeOption->SetIcon(this->getMenuOptionIcon(inst::config::gayMode));
-        this->menu->AddItem(gayModeOption);
         auto sigPatchesUrlOption = pu::ui::elm::MenuItem::New("options.menu_items.sig_url"_lang + inst::util::shortenString(inst::config::sigPatchesUrl, 42, false));
         sigPatchesUrlOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(sigPatchesUrlOption);
@@ -171,20 +172,6 @@ namespace inst::ui {
                     this->setMenuText();
                     break;
                 case 5:
-                    if (inst::config::gayMode) {
-                        inst::config::gayMode = false;
-                        mainApp->mainPage->awooImage->SetVisible(true);
-                        mainApp->instpage->awooImage->SetVisible(true);
-                    }
-                    else {
-                        inst::config::gayMode = true;
-                        mainApp->mainPage->awooImage->SetVisible(false);
-                        mainApp->instpage->awooImage->SetVisible(false);
-                    }
-                    inst::config::setConfig();
-                    this->setMenuText();
-                    break;
-                case 6:
                     keyboardResult = inst::util::softwareKeyboard("options.sig_hint"_lang, inst::config::sigPatchesUrl.c_str(), 500);
                     if (keyboardResult.size() > 0) {
                         inst::config::sigPatchesUrl = keyboardResult;
@@ -192,7 +179,7 @@ namespace inst::ui {
                         this->setMenuText();
                     }
                     break;
-                case 7:
+                case 6:
                     languageList = languageStrings;
                     languageList.push_back("options.language.system_language"_lang);
                     rc = inst::ui::mainApp->CreateShowDialog("options.language.title"_lang, "options.language.desc"_lang, languageList, false);
@@ -202,15 +189,18 @@ namespace inst::ui {
                             inst::config::languageSetting = 1;
                             break;
                         case 1:
-                            inst::config::languageSetting = 2;
+                            inst::config::languageSetting = 0;
                             break;
                         case 2:
-                            inst::config::languageSetting = 3;
+                            inst::config::languageSetting = 2;
                             break;
                         case 3:
-                            inst::config::languageSetting = 4;
+                            inst::config::languageSetting = 3;
                             break;
                         case 4:
+                            inst::config::languageSetting = 4;
+                            break;
+                        case 5:
                             inst::config::languageSetting = 10;
                             break;
                         default:
@@ -220,7 +210,7 @@ namespace inst::ui {
                     mainApp->FadeOut();
                     mainApp->Close();
                     break;
-                case 8:
+                case 7:
                     if (inst::util::getIPAddress() == "1.0.0.127") {
                         inst::ui::mainApp->CreateShowDialog("main.net.title"_lang, "main.net.desc"_lang, {"common.ok"_lang}, true);
                         break;
@@ -232,7 +222,7 @@ namespace inst::ui {
                     }
                     this->askToUpdate(downloadUrl);
                     break;
-                case 9:
+                case 8:
                     inst::ui::mainApp->CreateShowDialog("options.credits.title"_lang, "options.credits.desc"_lang, {"common.close"_lang}, true);
                     break;
                 default:
